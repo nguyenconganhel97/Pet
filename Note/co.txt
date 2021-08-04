@@ -1,0 +1,2186 @@
+console.log(data);
+      this.locationLayer = new this.$map.library.ol.layer.Vector({
+        zIndex: 1000,
+        source: new this.$map.library.ol.source.Vector({}),
+        // style: this.setStyle()
+      });
+      let polygon = [
+        [
+          [108014.586730806, 147292.406887792],
+          [108028.38035183, 147292.047481261],
+          [108032.555988474, 147291.938764655],
+          [108035.861317478, 147291.852655725],
+          [108036.623524159, 147291.832761426],
+          [108037.84135417, 147291.965911974],
+          [108036.437586535, 147224.132883241],
+          [108011.416785806, 147231.744829479],
+          [108014.586730806, 147292.406887792],
+        ],
+      ];
+      console.log(polygon);
+      let coordinates = [108014.586730806, 147292.406887792];
+      this.$map.instance.addLayer(this.locationLayer);
+      let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+      let transformedCoordinates = this.$map.library.ol.proj.transform(
+        coordinates,
+        this.$map.projection,
+        defaultProjection
+      );
+      console.log("transformedCoordinates : ", transformedCoordinates);
+      this.$map.instance.getView().setCenter(transformedCoordinates);
+      this.$map.instance.getView().setZoom(20);
+      let centerFeature = new this.$map.library.ol.Feature(
+        new this.$map.library.ol.geom.Point(transformedCoordinates)
+      );
+      centerFeature.setStyle(
+        new this.$map.library.ol.style.Style({
+            image: new this.$map.library.ol.style.Icon({
+                src: this.$utils.apiAsset("images/placeholder.png"),
+                scale: 0.75
+            }),
+            stroke: new this.$map.library.ol.style.Stroke({
+                color: "rgba(255,0,0,1.0)",
+                width: 1
+            }),
+            fill: new this.$map.library.ol.style.Fill({
+                color: "rgba(255,0,0,1.0)"
+            })
+        })
+        // new this.$map.library.ol.style.Style({
+        //   stroke: new this.$map.library.ol.style.Stroke({
+        //     color: "rgba(255, 87, 34, 0.5)",
+        //     width: 1,
+        //   }),
+        //   fill: new this.$map.library.ol.style.Fill({
+        //     color: "rgba(255, 87, 34, 0.7)",
+        //   }),
+        // })
+      );
+      console.log("centerFeature : ", centerFeature);
+      this.locationLayer.getSource().addFeature(centerFeature);
+	  
+	  
+	  
+	  <template>
+    <v-container class="pa-0" fluid>
+        <map-router
+            :height="
+                $vuetify.breakpoint.smAndUp
+                    ? 'calc(100vh - 0px)'
+                    : 'calc(100vh - 40px)'
+            "
+            map-id="home-carto"
+        />
+        <form-add-notification :showDialog="dialog" @close="close" />
+        <list-notification-dialog
+            :showDialog="dialogListNotify"
+            @close="close"
+        />
+        <list-change-dialog :showDialog="dialogListChange" @close="close" />
+        <list-request-dialog :showDialog="dialogListRequest" @close="close" />
+    </v-container>
+</template>
+
+<script>
+import { mapGetters, mapActions } from "vuex";
+
+import MapRouter from "../components/map/MapRouter";
+import drawPointInteraction from "../components/map/mixins/drawPointInteraction";
+import FormAddNotification from "../components/form/notification/Create";
+import ListNotificationDialog from "../components/lists/Notification.vue";
+import ListChangeDialog from "../components/lists/Change.vue";
+import ListRequestDialog from "../components/lists/Request.vue";
+import config from "../config";
+import mapBus from "../mapBus";
+
+// import EventBus from "../eventBus";
+// import apiService from "../apiService";
+
+export default {
+    name: "Home",
+
+    components: {
+        MapRouter,
+        FormAddNotification,
+        ListNotificationDialog,
+        ListChangeDialog,
+        ListRequestDialog
+    },
+    mixins: [drawPointInteraction],
+    data() {
+        return {
+            dialog: false,
+            dialogListNotify: false,
+            dialogListChange: false,
+            dialogListRequest: false,
+            activeMeasure: false,
+            arrayMeasure: [],
+            arrayLayer: [],
+            locationLayer: null
+        };
+    },
+    computed: {
+        ...mapGetters(["map/groups/getById", "map/layers/getById"])
+    },
+    methods: {
+        ...mapActions([
+            "notifications/setAll",
+            "burialTypes/setAll",
+            "cemeteries/setAll",
+            "deceaseds/setAll",
+            "statements/setAll",
+            "funerals/setAll",
+            "agents/setAll",
+            "responsibles/setAll",
+            "burials/setAll",
+            "requests/setAll"
+        ]),
+        clickHandlerOnMap(data) {
+            // eslint-disable-next-line no-prototype-builtins
+            if (data.hasOwnProperty("feature")) {
+                let layer = this["map/layers/getById"](data.layer);
+                // eslint-disable-next-line
+                let group = this["map/groups/getById"](layer.map_group_id);
+            }
+
+            if (this.activeMeasure) {
+                this.arrayMeasure = [data, ...this.arrayMeasure];
+
+                if (this.arrayMeasure.length > 2) {
+                    this.locationLayer.getSource().clear();
+                    this.locationLayer.getSource().refresh();
+                    this.arrayMeasure = [this.arrayMeasure[0]];
+                }
+
+                // if (this.arrayMeasure.length < 2) {
+                //   this.arrayMeasure.push(data);
+                // } else {
+                //   // this.locationLayer.getSource().clear();
+                //   // this.locationLayer.getSource().refresh();
+                //   // const layers = this.$map.instance.getLayers();
+                //   // layers.forEach((layer) => this.$map.instance.removeLayer(layer));
+                //   this.arrayLayer.forEach((e) => {
+                //     e.getSource().clear();
+                //     e.getSource().refresh();
+                //   });
+                //   this.arrayMeasure = [];
+                //   this.arrayMeasure.push(data);
+                // }
+
+                console.log("measure", this.arrayMeasure);
+                if (this.arrayMeasure.length == 2) {
+                    const lineCoordinates = [
+                        this.arrayMeasure[0],
+                        this.arrayMeasure[1]
+                    ];
+                    var line = new this.$map.library.ol.geom.LineString(
+                        lineCoordinates
+                    );
+
+                    console.log(
+                        "Distance",
+                        Math.round(line.getLength() * 100) / 100
+                    );
+
+                    // this.locationLayer = new this.$map.library.ol.layer.Vector({
+                    //   zIndex: 1000,
+                    //   source: new this.$map.library.ol.source.Vector({}),
+                    // });
+                    // this.arrayLayer.push(this.locationLayer);
+                    // this.$map.instance.addLayer(this.locationLayer);
+                    // this.$map.instance.getView().setCenter(data);
+                    // this.$map.instance.getView().setZoom(20);
+
+                    let lineFeature = new this.$map.library.ol.Feature(line);
+                    lineFeature.setStyle(
+                        new this.$map.library.ol.style.Style({
+                            stroke: new this.$map.library.ol.style.Stroke({
+                                color: "rgb(255, 211, 25)",
+                                width: 5
+                            })
+                        })
+                    );
+
+                    this.locationLayer.getSource().addFeature(lineFeature);
+                }
+
+                let centerFeature = new this.$map.library.ol.Feature(
+                    new this.$map.library.ol.geom.Point(data)
+                );
+                centerFeature.setStyle(
+                    new this.$map.library.ol.style.Style({
+                        image: new this.$map.library.ol.style.Icon({
+                            src: this.$utils.apiAsset("images/placeholder.png"),
+                            scale: 0.75
+                        })
+                    })
+                );
+                this.locationLayer.getSource().addFeature(centerFeature);
+            }
+        },
+        changeRoute(coordinates) {
+            let marker = this.locationLayer.getSource().getFeatures()[0];
+            let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+            let addressCoordinates = this.$map.library.ol.proj.transform(
+                coordinates,
+                this.$map.projection,
+                defaultProjection
+            );
+            marker.getGeometry().setCoordinates(addressCoordinates);
+            this.locationCoordinates = [...coordinates];
+        },
+        changeAddress(coordinates) {
+            let marker = this.locationLayer.getSource().getFeatures()[0];
+            let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+            let addressCoordinates = this.$map.library.ol.proj.transform(
+                coordinates,
+                this.$map.projection,
+                defaultProjection
+            );
+            marker.getGeometry().setCoordinates(addressCoordinates);
+            this.locationCoordinates = [...coordinates];
+        },
+        dragOnMap(marker) {
+            let coordinates = marker.getGeometry().getCoordinates();
+            let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+            this.locationCoordinates = [
+                ...this.$map.library.ol.proj.transform(
+                    coordinates,
+                    defaultProjection,
+                    this.$map.projection
+                )
+            ];
+        },
+        mountMap(mapId) {
+            if (mapId === "home-carto") {
+                mapBus.$emit("resetDefaultView");
+                mapBus.$emit("showAllGroups");
+                this.locationLayer = new this.$map.library.ol.layer.Vector({
+                    zIndex: 1000,
+                    source: new this.$map.library.ol.source.Vector({})
+                });
+                this.$map.instance.addLayer(this.locationLayer);
+                let defaultProjection = this.$map.library.ol.proj.get(
+                    "EPSG:3857"
+                );
+                this.locationCoordinates = [...config.center];
+                let centerCoordinates = this.$map.library.ol.proj.transform(
+                    config.center,
+                    this.$map.projection,
+                    defaultProjection
+                );
+                let centerFeature = new this.$map.library.ol.Feature(
+                    new this.$map.library.ol.geom.Point(centerCoordinates)
+                );
+                /*
+                centerFeature.setStyle(
+                    new this.$map.library.ol.style.Style({
+                        image: new this.$map.library.ol.style.Icon({
+                            src: this.$utils.apiAsset("images/placeholder.png"),
+                            scale: 0.75,
+                        }),
+                    })
+                );
+                */
+                this.locationLayer.getSource().addFeature(centerFeature);
+                /*
+                this.addDrawPointInteraction(
+                    this.locationLayer.getSource(),
+                    new this.$map.library.ol.style.Style({
+                        image: new this.$map.library.ol.style.Icon({
+                            src: this.$utils.apiAsset("images/placeholder.png"),
+                            scale: 0.75,
+                        }),
+                    }),
+                    true
+                );
+                */
+            }
+            mapBus.$on("changeMapRoute", this.changeRoute);
+            mapBus.$on("changeMapAddress", this.changeAddress);
+        },
+        centerOnMap(coordinates) {
+            let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+            let center = this.$map.library.ol.proj.transform(
+                coordinates,
+                this.$map.projection,
+                defaultProjection
+            );
+            let view = new this.$map.library.ol.View({
+                center: center,
+                zoom: 19
+            });
+            this.$map.instance.setView(view);
+        },
+        closeForm() {},
+        closeTable() {},
+        add() {
+            this.dialog = true;
+        },
+        showListNotify() {
+            this.dialogListNotify = true;
+        },
+        showListChange() {
+            this.dialogListChange = true;
+        },
+        showListRequest() {
+            this.dialogListRequest = true;
+        },
+        close() {
+            this.dialog = false;
+            this.dialogListNotify = false;
+            this.dialogListChange = false;
+            this.dialogListRequest = false;
+        }
+    },
+    created() {
+        this["notifications/setAll"]();
+        this["burialTypes/setAll"]();
+        this["cemeteries/setAll"]();
+        this["deceaseds/setAll"]();
+        this["statements/setAll"]();
+        this["funerals/setAll"]();
+        this["agents/setAll"]();
+        this["responsibles/setAll"]();
+        this["burials/setAll"]();
+        this["requests/setAll"]();
+        mapBus.$on("addNotifications", () => {
+            this.add();
+        });
+        mapBus.$on("showListNotifications", () => {
+            this.showListNotify();
+        });
+        mapBus.$on("showListChange", () => {
+            this.showListChange();
+        });
+        mapBus.$on("showListRequest", () => {
+            this.showListRequest();
+        });
+        mapBus.$on("click", () => {
+            // console.log("coordinates : ",coordinates);
+        });
+
+        mapBus.$on("mounted", this.mountMap);
+        mapBus.$on("activeMeasure", () => {
+            this.activeMeasure = !this.activeMeasure;
+        });
+        //mapBus.$on("dragged", this.dragOnMap);
+        mapBus.$on("click", this.clickHandlerOnMap);
+    },
+    beforeDestroy() {
+        if (this.$map.instance) {
+            this.$map.instance.removeLayer(this.locationLayer);
+            this.removeAddPointInteraction();
+        }
+        mapBus.$off("changeMapRoute", this.changeRoute);
+        mapBus.$off("changeMapAddress", this.changeAddress);
+        mapBus.$off("mounted", this.mountMap);
+        //mapBus.$off("dragged", this.dragOnMap);
+        mapBus.$off("click", this.clickHandlerOnMap);
+    }
+};
+</script>
+
+<template>
+  <v-card v-if="selectedItem">
+    <v-card-text class="px-3 py-1 text-h6 text-uppercase">
+      Espace vert N°{{ selectedItem.gid }}
+      <v-btn
+        fab
+        absolute
+        top
+        right
+        x-small
+        class="mt-5"
+        color="error"
+        @click="close"
+      >
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-card-text>
+    <v-divider class="mx-3"></v-divider>
+
+    <v-tabs v-model="greenspaceTabs" height="40" class="pa-2" grow>
+      <v-tab>Informations générales</v-tab>
+      <v-tab>Emplacement</v-tab>
+      <v-tab v-show="selectedItem.reports && selectedItem.reports.length > 0">{{
+        $t("dialogs.assets.tabs.report")
+      }}</v-tab>
+      <v-tab
+        v-show="
+          selectedItem.interventions && selectedItem.interventions.length > 0
+        "
+        >{{ $t("dialogs.assets.tabs.intervention") }}</v-tab
+      >
+      <v-tab v-show="selectedItem.orders && selectedItem.orders.length > 0">{{
+        $t("dialogs.assets.tabs.order")
+      }}</v-tab>
+      <v-tab>Historique</v-tab>
+    </v-tabs>
+    <v-tabs-items v-model="greenspaceTabs">
+      <v-tab-item>
+        <v-form
+          ref="form"
+          v-model="valid"
+          lazy-validation
+          @submit.prevent="submit"
+        >
+          <v-container fluid>
+            <v-row>
+              <v-col
+                cols="12"
+                :md="selectedItem.plot_gid || selectedItem.address_gid ? 3 : 5"
+              >
+                <v-card>
+                  <v-card-title
+                    class="
+                      primary
+                      white--text
+                      py-1
+                      justify-center
+                      subtitle-1
+                      font-weight-bold
+                    "
+                    >Bâtiment</v-card-title
+                  >
+                  <v-card-text class="pt-1">
+                    <v-container fluid>
+                      <v-row>
+                        <v-col cols="3" class="py-1">
+                          <v-text-field
+                            v-model="selectedItem.gid"
+                            dense
+                            readonly
+                            label="Référence"
+                            outlined
+                            hide-details
+                            background-color="grey lighten-3"
+                            prepend-inner-icon="mdi-identifier"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="9" class="py-1">
+                          <v-text-field
+                            v-model="form.name"
+                            dense
+                            label="Nom"
+                            outlined
+                            hide-details
+                            :background-color="
+                              form.name !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.name !== null }"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            dense
+                            outlined
+                            readonly
+                            :value="$utils.getDate(selectedItem.created_at)"
+                            hide-details
+                            label="Date de création"
+                            background-color="grey lighten-3"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            dense
+                            outlined
+                            readonly
+                            :value="username"
+                            hide-details
+                            label="Créé par"
+                            background-color="grey lighten-3"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            dense
+                            outlined
+                            v-model="form.greenspaces_nature_id"
+                            :items="natures"
+                            hide-details
+                            label="Nature"
+                            :background-color="
+                              form.greenspaces_nature_id !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.greenspaces_nature_id !== null,
+                            }"
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            dense
+                            outlined
+                            v-model="form.greenspaces_subnature_id"
+                            :items="subnatures"
+                            hide-details
+                            label="Sous-nature"
+                            :background-color="
+                              form.greenspaces_subnature_id !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.greenspaces_subnature_id !== null,
+                            }"
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="12" class="py-1">
+                          <v-textarea
+                            outlined
+                            dense
+                            rows="2"
+                            name="input-7-4"
+                            hide-details
+                            :label="$t('forms.location.buildingInfos.field1')"
+                            :background-color="
+                              form.description !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.description !== null,
+                            }"
+                            prepend-inner-icon="mdi-text-box"
+                            v-model="form.description"
+                          ></v-textarea>
+                        </v-col>
+                        <v-col cols="12" class="py-1">
+                          <v-textarea
+                            outlined
+                            dense
+                            rows="2"
+                            name="input-7-4"
+                            hide-details
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field2')
+                            "
+                            v-model="form.intervention_condition"
+                            :background-color="
+                              form.intervention_condition !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.intervention_condition !== null,
+                            }"
+                            prepend-inner-icon="mdi-text-box"
+                          />
+                        </v-col>
+                      </v-row>
+                    </v-container>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col
+                cols="12"
+                :md="selectedItem.plot_gid || selectedItem.address_gid ? 5 : 7"
+              >
+                <v-tabs v-model="informationsTab" grow>
+                  <v-tab>Informations complémentaires</v-tab>
+                  <v-tab>{{
+                    $t("forms.location.greenspaceInfos.tabTwo.title")
+                  }}</v-tab>
+                </v-tabs>
+                <v-tabs-items v-model="informationsTab">
+                  <v-tab-item>
+                    <v-container class="px-0 pt-5">
+                      <v-row>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field3')
+                            "
+                            v-model="form.length"
+                            :background-color="
+                              form.length !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.length !== null }"
+                            prepend-inner-icon="mdi-tape-measure"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field4')
+                            "
+                            v-model="form.width"
+                            :background-color="
+                              form.width !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.width !== null }"
+                            prepend-inner-icon="mdi-tape-measure"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field5')
+                            "
+                            v-model="form.diameter"
+                            :background-color="
+                              form.diameter !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.diameter !== null }"
+                            prepend-inner-icon="mdi-tape-measure"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field6')
+                            "
+                            v-model="form.height"
+                            :background-color="
+                              form.height !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.height !== null }"
+                            prepend-inner-icon="mdi-tape-measure"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field7')
+                            "
+                            v-model="form.area"
+                            :background-color="
+                              form.area !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.area !== null }"
+                            prepend-inner-icon="mdi-texture-box"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabOne.field8')
+                            "
+                            v-model="form.volume"
+                            :background-color="
+                              form.volume !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.volume !== null }"
+                            prepend-inner-icon="mdi-box-shadow"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field1')
+                            "
+                            v-model="form.management_class"
+                            :background-color="
+                              form.management_class !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.management_class !== null,
+                            }"
+                            prepend-inner-icon="mdi-folder-open"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-checkbox
+                            dense
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field4')
+                            "
+                            v-model="form.water_connection"
+                          ></v-checkbox>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-textarea
+                            outlined
+                            dense
+                            rows="2"
+                            hide-details
+                            name="input-7-4"
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field2')
+                            "
+                            v-model="form.goal"
+                            :background-color="
+                              form.goal !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.goal !== null }"
+                            prepend-inner-icon="mdi-text-box"
+                          ></v-textarea>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-textarea
+                            outlined
+                            dense
+                            rows="2"
+                            hide-details
+                            name="input-7-4"
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field3')
+                            "
+                            v-model="form.comment"
+                            :background-color="
+                              form.comment !== null ? ' blue lighten-5 ' : null
+                            "
+                            :class="{ 'elevation-1': form.comment !== null }"
+                            prepend-inner-icon="mdi-text-box"
+                          ></v-textarea>
+                        </v-col>
+                      </v-row>
+                    </v-container>
+                  </v-tab-item>
+                  <v-tab-item>
+                    <v-container class="px-0 pt-5">
+                      <v-row>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field5')
+                            "
+                            v-model="form.coating_type"
+                            :items="coatingTypeItems"
+                            :background-color="
+                              form.coating_type !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.coating_type !== null,
+                            }"
+                            prepend-inner-icon="mdi-texture-box"
+                          />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field6')
+                            "
+                            v-model="form.coating_maintenance"
+                            :items="coatingMaintenanceItems"
+                            :background-color="
+                              form.coating_maintenance !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.coating_maintenance !== null,
+                            }"
+                            prepend-inner-icon="mdi-texture-box"
+                          />
+                        </v-col>
+                        <v-col cols="12" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field7')
+                            "
+                            v-model="form.coating_maintenance_material"
+                            :items="coatingMaintenanceMaterialItems"
+                            :background-color="
+                              form.coating_maintenance_material !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.coating_maintenance_material !== null,
+                            }"
+                            prepend-inner-icon="mdi-tools"
+                          />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t('forms.location.greenspaceInfos.tabTwo.field8')
+                            "
+                            v-model="form.coating_maintenance_frequency"
+                            :items="coatingMaintenanceFrequencyItems"
+                            :background-color="
+                              form.coating_maintenance_frequency !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.coating_maintenance_frequency !== null,
+                            }"
+                            prepend-inner-icon="mdi-calendar"
+                          />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            label="Temps planifié"
+                            v-model="form.coating_maintenance_duration"
+                            :background-color="
+                              form.coating_maintenance_duration !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.coating_maintenance_duration !== null,
+                            }"
+                            prepend-inner-icon="mdi-clock"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="12" class="py-1">
+                          <v-divider />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t(
+                                'forms.location.greenspaceInfos.tabTwo.field10'
+                              )
+                            "
+                            v-model="form.planting_type"
+                            :background-color="
+                              form.planting_type !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.planting_type !== null,
+                            }"
+                            prepend-inner-icon="mdi-flower"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t(
+                                'forms.location.greenspaceInfos.tabTwo.field11'
+                              )
+                            "
+                            v-model="form.planting_maintenance"
+                            :items="plantingMaintenanceItems"
+                            :background-color="
+                              form.planting_maintenance !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.planting_maintenance !== null,
+                            }"
+                            prepend-inner-icon="mdi-texture-box"
+                          />
+                        </v-col>
+                        <v-col cols="12" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t(
+                                'forms.location.greenspaceInfos.tabTwo.field12'
+                              )
+                            "
+                            v-model="form.planting_maintenance_material"
+                            :items="plantingMaintenanceMaterialItems"
+                            :background-color="
+                              form.planting_maintenance_material !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.planting_maintenance_material !== null,
+                            }"
+                            prepend-inner-icon="mdi-tools"
+                          />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-select
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t(
+                                'forms.location.greenspaceInfos.tabTwo.field13'
+                              )
+                            "
+                            v-model="form.planting_maintenance_frequency"
+                            :items="plantingMaintenanceFrequencyItems"
+                            :background-color="
+                              form.planting_maintenance_frequency !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1':
+                                form.planting_maintenance_frequency !== null,
+                            }"
+                            prepend-inner-icon="mdi-calendar"
+                          />
+                        </v-col>
+                        <v-col cols="6" class="py-1">
+                          <v-text-field
+                            hide-details
+                            outlined
+                            dense
+                            clearable
+                            :label="
+                              $t(
+                                'forms.location.greenspaceInfos.tabTwo.field14'
+                              )
+                            "
+                            v-model="form.changing_date"
+                            :background-color="
+                              form.changing_date !== null
+                                ? ' blue lighten-5 '
+                                : null
+                            "
+                            :class="{
+                              'elevation-1': form.changing_date !== null,
+                            }"
+                            prepend-inner-icon="mdi-calendar"
+                          ></v-text-field>
+                        </v-col>
+                      </v-row>
+                    </v-container>
+                  </v-tab-item>
+                </v-tabs-items>
+              </v-col>
+              <v-col
+                cols="12"
+                md="4"
+                v-if="selectedItem.plot_gid || selectedItem.address_gid"
+              >
+                <v-row>
+                  <v-col cols="12">
+                    <v-card v-if="selectedItem.plotItem">
+                      <v-card-title
+                        class="
+                          primary
+                          white--text
+                          py-1
+                          justify-center
+                          subtitle-1
+                          font-weight-bold
+                        "
+                        >Parcelle</v-card-title
+                      >
+                      <v-card-text class="pt-3">
+                        <v-row class="pt-1">
+                          <v-col cols="4" class="py-1">
+                            <v-text-field
+                              v-if="selectedItem.plotItem"
+                              v-model="selectedItem.plotItem.section"
+                              dense
+                              readonly
+                              label="Section"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="4" class="py-1">
+                            <v-text-field
+                              v-if="selectedItem.plotItem"
+                              v-model="selectedItem.plotItem.bis"
+                              dense
+                              readonly
+                              label="Bis"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="4" class="py-1">
+                            <v-text-field
+                              v-if="selectedItem.plotItem"
+                              v-model="selectedItem.plotItem.division"
+                              dense
+                              readonly
+                              label="Division"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="6" class="py-1">
+                            <v-text-field
+                              v-if="selectedItem.plotItem"
+                              v-model="selectedItem.plotItem.plot"
+                              dense
+                              readonly
+                              label="Parcelle"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="6" class="py-1">
+                            <v-text-field
+                              v-if="selectedItem.plotItem"
+                              v-model="selectedItem.plotItem.exposant"
+                              dense
+                              readonly
+                              label="Exposant"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                            ></v-text-field>
+                          </v-col>
+                        </v-row>
+                      </v-card-text>
+                    </v-card>
+                    <v-card v-if="selectedItem.address">
+                      <v-card-title
+                        class="
+                          primary
+                          white--text
+                          py-1
+                          justify-center
+                          subtitle-1
+                          font-weight-bold
+                        "
+                        >Adresse</v-card-title
+                      >
+                      <v-card-text class="pt-3">
+                        <v-row class="pt-1">
+                          <v-col cols="8" class="py-1">
+                            <v-text-field
+                              v-model="selectedItem.address.rue_nm"
+                              dense
+                              readonly
+                              label="Rue"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                              prepend-inner-icon="mdi-road"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="4" class="py-1">
+                            <v-text-field
+                              v-model="selectedItem.address.adr_numero"
+                              dense
+                              readonly
+                              label="Numéro"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                              prepend-inner-icon="mdi-identifier"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="6" class="py-1">
+                            <v-text-field
+                              v-model="selectedItem.address.code_posta"
+                              dense
+                              readonly
+                              label="Code postal"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                              prepend-inner-icon="mdi-identifier"
+                            ></v-text-field>
+                          </v-col>
+                          <v-col cols="6" class="py-1">
+                            <v-text-field
+                              v-model="selectedItem.address.com_nm"
+                              dense
+                              readonly
+                              label="Localité"
+                              outlined
+                              hide-details
+                              background-color="grey lighten-3"
+                              prepend-inner-icon="mdi-identifier"
+                            ></v-text-field>
+                          </v-col>
+                        </v-row>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-card>
+                  <v-card-title
+                    class="
+                      primary
+                      white--text
+                      py-1
+                      justify-center
+                      subtitle-1
+                      font-weight-bold
+                    "
+                    >Photos</v-card-title
+                  >
+                  <photo
+                    v-if="selectedItem.gid"
+                    :uploaded-attachments="selectedItem.attachments"
+                    @uploadAttachments="uploadAttachments"
+                    @removeFromAttachmentsUploaded="
+                      removeFromAttachmentsUploaded
+                    "
+                  />
+                </v-card>
+              </v-col>
+            </v-row>
+            <v-divider class="mt-3"></v-divider>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="error" class="mx-1" small @click="close">
+                Fermer
+                <v-icon right> mdi-close-circle </v-icon>
+              </v-btn>
+              <v-btn
+                color="primary"
+                small
+                @click="toggleCommentDialog"
+                :disabled="!valid"
+              >
+                Sauvegarder
+                <v-icon right> mdi-content-save </v-icon>
+              </v-btn>
+            </v-card-actions>
+          </v-container>
+        </v-form>
+      </v-tab-item>
+
+      <v-tab-item>
+        <v-btn color="primary" small @click="showMap">
+          TEST
+          <v-icon right> mdi-content-save </v-icon>
+        </v-btn>
+
+        <map-router height="calc(100vh - 249px)" map-id="map-location" />
+      </v-tab-item>
+
+      <v-tab-item
+        v-show="selectedItem.reports && selectedItem.reports.length > 0"
+      >
+        <v-data-table :headers="reportsHeaders" :items="selectedItem.reports">
+          <template v-slot:[`item.created_at`]="{ item }">
+            {{ $utils.getDate(item.created_at) }}
+          </template>
+          <template v-slot:[`item.status`]="{ item }">
+            <v-chip small :color="getColorStatus(item.status)">
+              {{ status(item.status) }}
+            </v-chip>
+          </template>
+          <template v-slot:[`item.type`]="{ item }">
+            <v-card-text class="pa-0">{{ reportType(item) }}</v-card-text>
+          </template>
+          <template v-slot:[`item.nature`]="{ item }">
+            <v-card-text class="pa-0">{{ reportNature(item) }}</v-card-text>
+          </template>
+          <template v-slot:[`item.subNature`]="{ item }">
+            <v-card-text class="pa-0">{{ reportSubnature(item) }}</v-card-text>
+          </template>
+          <template v-slot:[`item.rue`]="{ item }">
+            <v-card-text class="pa-0">{{ address(item) }}</v-card-text>
+          </template>
+        </v-data-table>
+      </v-tab-item>
+      <!-- Intervention -->
+      <v-tab-item
+        v-show="
+          selectedItem.interventions && selectedItem.interventions.length > 0
+        "
+      >
+        <v-data-table
+          :headers="interventionsHeaders"
+          :items="selectedItem.interventions"
+        >
+          <template v-slot:[`item.createDate`]="{ item }">
+            {{ $utils.getDate(item.submitted_at) }}
+          </template>
+          <template v-slot:item.status="{ item }">
+            <v-chip small :color="getColorStatus(item.status)">
+              {{ status(item.status) }}
+            </v-chip>
+          </template>
+          <template v-slot:[`item.street`]="{ item }">
+            {{ address(item) }}
+          </template>
+          <template v-slot:[`item.wished_start_at`]="{ item }">
+            {{ $utils.getDate(item.wished_start_at) }}
+          </template>
+          <template v-slot:[`item.wished_end_at`]="{ item }">
+            {{ $utils.getDate(item.wished_end_at) }}
+          </template>
+          <template v-slot:[`item.type`]="{ item }">
+            {{ interventionType(item) }}
+          </template>
+          <template v-slot:[`item.user`]="{ item }">
+            {{ interventionUser(item) }}
+          </template>
+          <template v-slot:[`item.userService`]="{ item }">
+            {{ interventionUserService(item.user_id) }}
+          </template>
+        </v-data-table>
+      </v-tab-item>
+      <!-- Order -->
+      <v-tab-item
+        v-show="selectedItem.orders && selectedItem.orders.length > 0"
+      >
+        <v-data-table :headers="ordersHeaders" :items="selectedItem.orders">
+          <template v-slot:[`item.street`]="{ item }">
+            {{ address(item) }}
+          </template>
+          <template v-slot:[`item.creation`]="{ item }">
+            {{ $utils.getDate(item.submitted_at) }}
+          </template>
+          <template v-slot:[`item.scheduled_end_at`]="{ item }">
+            {{ $utils.getDate(item.scheduled_end_at) }}
+          </template>
+          <template v-slot:[`item.service_date_start`]="{ item }">
+            {{ $utils.getDate(item.service_date_start) }}
+          </template>
+          <template v-slot:[`item.type`]="{ item }">
+            {{ orderInterventionType(item) }}
+          </template>
+          <template v-slot:[`item.report`]="{ item }">
+            {{ orderReportType(item) }}
+          </template>
+          <template v-slot:item.status="{ item }">
+            <v-chip small :color="getColorStatus(item.status)">
+              {{ status(item.status) }}
+            </v-chip>
+          </template>
+        </v-data-table>
+      </v-tab-item>
+
+      <!-- History -->
+      <v-tab-item v-if="form.gid">
+        <history-tab :item-id="form.gid" item-type="greenspace" />
+      </v-tab-item>
+    </v-tabs-items>
+    <!-- Dialog comment update -->
+    <v-dialog v-model="commentDialog" width="60vw">
+      <v-card class="pa-8">
+        <v-card-text class="pa-0 text-h6 text-uppercase">
+          Commentaire modification espace vert n° {{ form.gid }}
+          <v-btn
+            fab
+            absolute
+            top
+            right
+            x-small
+            class="mt-5"
+            color="error"
+            @click="commentDialog = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-text>
+        <v-textarea
+          placeholder="Changement de date, correction emplacement, informations additionnelles, ..."
+          v-model="commentUpdate"
+        ></v-textarea>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            small
+            @click="submit($event)"
+            :disabled="!valid"
+          >
+            {{ $t("dialogs.reports.buttons.save") }}
+            <v-icon right> mdi-content-save </v-icon>
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-card>
+</template>
+
+<script>
+import { mapActions, mapGetters } from "vuex";
+import MapRouter from "../map/MapRouter";
+import Photo from "../EditingDialogTabs/Photo";
+const HistoryTab = () => import("../EditingDialogTabs/History");
+import mapBus from "../../mapBus";
+import config from "../../config";
+
+export default {
+  name: "Greenspace",
+  components: {
+    Photo,
+    HistoryTab,
+    MapRouter,
+  },
+  props: {
+    formGreenspace: Object,
+  },
+  data() {
+    return {
+      valid: true,
+      greenspaceTabs: 0,
+      informationsTab: 0,
+      form: {},
+      selectedItem: null,
+      commentDialog: false,
+      commentUpdate: null,
+      attachmentsIdToRemove: [],
+      reportsHeaders: [
+        { text: "Référence", value: "gid" },
+        { text: "Signalé le", value: "created_at" },
+        { text: "Statut", value: "status" },
+        { text: "Type", value: "type" },
+        { text: "Nature", value: "nature" },
+        { text: " Sous-nature", value: "subnature" },
+        { text: "Rue", value: "street" },
+      ],
+      interventionsHeaders: [
+        {
+          text: this.$t("lists.interventions.dataTable.reference"),
+          value: "gid",
+        },
+        {
+          text: this.$t("lists.interventions.dataTable.createdOn"),
+          value: "createDate",
+        },
+        { text: "Status", value: "status" },
+        { text: "Début souhaité", value: "wished_start_at" },
+        { text: "Date butoire", value: "wished_end_at" },
+        { text: this.$t("lists.interventions.dataTable.type"), value: "type" },
+        {
+          text: this.$t("lists.interventions.dataTable.requestedBy"),
+          value: "user",
+        },
+        { text: "Service demandeur", value: "userService" },
+        {
+          text: this.$t("lists.interventions.dataTable.streetName"),
+          value: "street",
+        },
+      ],
+      ordersHeaders: [
+        { text: this.$t("lists.orders.dataTable.reference"), value: "gid" },
+        {
+          text: this.$t("lists.orders.dataTable.createdOn"),
+          value: "creation",
+        },
+        { text: "Statut", value: "status" },
+        {
+          text: this.$t("lists.orders.dataTable.serviceDateStart"),
+          value: "service_date_start",
+        },
+        {
+          text: this.$t("lists.orders.dataTable.serviceDateTo"),
+          value: "scheduled_end_at",
+        },
+        {
+          text: this.$t("lists.orders.dataTable.interventionType"),
+          value: "type",
+        },
+        { text: this.$t("lists.orders.dataTable.reportType"), value: "report" },
+        { text: this.$t("lists.orders.dataTable.streetName"), value: "street" },
+      ],
+      coatingTypeItems: [
+        {
+          text: "Béton",
+          value: "Béton",
+        },
+        {
+          text: "Bois",
+          value: "Bois",
+        },
+        {
+          text: "Dalle",
+          value: "Dalle",
+        },
+        {
+          text: "Dalle alvéolée",
+          value: "Dalle alvéolée",
+        },
+        {
+          text: "Dolomie",
+          value: "Dolomie",
+        },
+        {
+          text: "Gravier",
+          value: "Gravier",
+        },
+        {
+          text: "Hydrocarboné",
+          value: "Hydrocarboné",
+        },
+        {
+          text: "Mulch - copeaux",
+          value: "Mulch - copeaux",
+        },
+        {
+          text: "Mulch - feuilles",
+          value: "Mulch - feuilles",
+        },
+        {
+          text: "Pavé naturel avec joint",
+          value: "Pavé nature avec join",
+        },
+        {
+          text: "Pavé sans joint",
+          value: "Pavé sans joint",
+        },
+        {
+          text: "Pelouse",
+          value: "Pelouse",
+        },
+        {
+          text: "Pelouse de sport",
+          value: "Pelouse de sport",
+        },
+        {
+          text: "Plante couvre sol",
+          value: "Plante couvre sol",
+        },
+        {
+          text: "Pré de fauche",
+          value: "Pré de fauche",
+        },
+        {
+          text: "Pré fleuri",
+          value: "Pré fleuri",
+        },
+        {
+          text: "Sable",
+          value: "Sable",
+        },
+        {
+          text: "Stabilisé",
+          value: "Stabilisé",
+        },
+        {
+          text: "Surface enherbée",
+          value: "Surface enherbée",
+        },
+        {
+          text: "Terre battue",
+          value: "Terre battue",
+        },
+        {
+          text: "Terre nue",
+          value: "Terre nue",
+        },
+      ],
+      coatingMaintenanceItems: [
+        {
+          text: "Arrosage",
+          value: "Arrosage",
+        },
+        {
+          text: "Débroussaillage",
+          value: "Débroussaillage",
+        },
+        {
+          text: "Démoussage",
+          value: "Démoussage",
+        },
+        {
+          text: "Désherbage",
+          value: "Désherbage",
+        },
+        {
+          text: "Deux fauches annuelles",
+          value: "Deux fauches annuelles",
+        },
+        {
+          text: "Paillage feuilles",
+          value: "Paillage feuilles",
+        },
+        {
+          text: "Paillage mulch",
+          value: "Paillage mulch",
+        },
+        {
+          text: "Rien",
+          value: "Rien",
+        },
+        {
+          text: "Semi",
+          value: "Semi",
+        },
+        {
+          text: "Soufflage de feuilles",
+          value: "Soufflage de feuilles",
+        },
+        {
+          text: "Taille",
+          value: "Taille",
+        },
+        {
+          text: "Tonte",
+          value: "Tonte",
+        },
+        {
+          text: "Une fauche annuelle",
+          value: "Une fauche annuelle",
+        },
+      ],
+      coatingMaintenanceMaterialItems: [
+        {
+          text: "Barre faucheuse",
+          value: "Barre faucheuse",
+        },
+        {
+          text: "Débroussailleuse",
+          value: "Débroussailleuse",
+        },
+        {
+          text: "Désherbeur",
+          value: "Désherbeur",
+        },
+        {
+          text: "Motoculteur",
+          value: "Motoculteur",
+        },
+        {
+          text: "Outils à main",
+          value: "Outils à main",
+        },
+        {
+          text: "Rien",
+          value: "Rien",
+        },
+        {
+          text: "Sécateur",
+          value: "Sécateur",
+        },
+        {
+          text: "Souffleur",
+          value: "Souffleur",
+        },
+        {
+          text: "Tondeuse autoportée",
+          value: "Tondeuse autoportée",
+        },
+        {
+          text: "Tondeuse autotractée",
+          value: "Tondeuse autotractée",
+        },
+      ],
+      coatingMaintenanceFrequencyItems: [
+        {
+          text: "1x / an",
+          value: "1x / an",
+        },
+        {
+          text: "1x / jour",
+          value: "1x / jour",
+        },
+        {
+          text: "1x / mois",
+          value: "1x / mois",
+        },
+        {
+          text: "10x / an",
+          value: "10x / an",
+        },
+        {
+          text: "1x / semaine",
+          value: "1x / semaine",
+        },
+        {
+          text: "2x / an",
+          value: "2x / an",
+        },
+        {
+          text: "2x / mois",
+          value: "2x / mois",
+        },
+        {
+          text: "2x / semaine",
+          value: "2x / semaine",
+        },
+        {
+          text: "3x / an",
+          value: "3x / an",
+        },
+        {
+          text: "4x / an",
+          value: "4x / an",
+        },
+        {
+          text: "5x / an",
+          value: "5x / an",
+        },
+        {
+          text: "6x / an",
+          value: "6x / an",
+        },
+        {
+          text: "8x / an",
+          value: "8x / an",
+        },
+        {
+          text: "Jamais",
+          value: "Jamais",
+        },
+      ],
+      plantingMaintenanceItems: [
+        {
+          text: "Arrosage",
+          value: "Arrosage",
+        },
+        {
+          text: "Deux fauches annuelles",
+          value: "Arrosage",
+        },
+        {
+          text: "Rien",
+          value: "Rien",
+        },
+        {
+          text: "Semi",
+          value: "Semi",
+        },
+        {
+          text: "Taille",
+          value: "Taille",
+        },
+        {
+          text: "Une fauche annuelle",
+          value: "Une fauche annuelle",
+        },
+      ],
+      plantingMaintenanceFrequencyItems: [
+        {
+          text: "1x / an",
+          value: "1x / an",
+        },
+        {
+          text: "2x / an",
+          value: "2x / an",
+        },
+        {
+          text: "3x / an",
+          value: "3x / an",
+        },
+        {
+          text: "1x tous les 2 ans",
+          value: "1x tous les 2 ans",
+        },
+        {
+          text: "1x tous les 3 ans",
+          value: "1x tous les 3 ans",
+        },
+        {
+          text: "1x tous les 4 ans",
+          value: "1x tous les 4 ans",
+        },
+        {
+          text: "1x tous les 5 ans",
+          value: "1x tous les 5 ans",
+        },
+        {
+          text: "Jamais",
+          value: "Jamais",
+        },
+      ],
+      plantingMaintenanceMaterialItems: [
+        {
+          text: "Barre faucheuse",
+          value: "Barre faucheuse",
+        },
+        {
+          text: "Outils à main",
+          value: "Outils à main",
+        },
+        {
+          text: "Sécateur",
+          value: "Sécateur",
+        },
+        {
+          text: "Taille haie",
+          value: "Taille haie",
+        },
+      ],
+      locationLayer: null,
+    };
+  },
+  methods: {
+    ...mapActions(["greenspaces/updateOne", "attachments/removeOne"]),
+    address(report) {
+      if (report.address_gid)
+        return this["addresses/getById"](report.address_gid).rue_nm;
+      else return null;
+    },
+    getColorStatus(status) {
+      if (status === "open") return "error";
+      if (status === "pending") return "warning";
+      if (status === "processing") return "secondary";
+      if (status === "enclose") return "success";
+      if (status === "transferred") return "primary";
+      if (status === "rejected") return "orange darken-2 white--text";
+      return "warning";
+    },
+    status(status) {
+      if (status === "open") return "Ouvert";
+      else if (status === "processing") return "En traitement";
+      else if (status === "pending") return "En attente";
+      else if (status === "enclose") return "Clôturé";
+      else if (status === "transferred") return "Transféré";
+      else if (status === "rejected") return "Rejeté";
+      else return null;
+    },
+    reportType(report) {
+      if (report.reports_type_id)
+        return this["reportsTypes/getById"](report.reports_type_id).name;
+      else return null;
+    },
+    reportNature(report) {
+      if (report.reports_nature_id)
+        return this["reportsNatures/getById"](report.reports_nature_id).name;
+      else return null;
+    },
+    reportSubnature(report) {
+      if (report.reports_subnature_id)
+        return this["reportsSubnatures/getById"](report.reports_subnature_id)
+          .name;
+      else return null;
+    },
+    interventionType(intervention) {
+      if (intervention.interventions_type_id)
+        return this["interventionsTypes/getById"](
+          intervention.interventions_type_id
+        ).name;
+      else return null;
+    },
+    interventionUser(intervention) {
+      let user = this["users/getById"](intervention.user_id);
+      return user.first_name + " " + user.last_name;
+    },
+    interventionUserService(userId) {
+      let user = this["users/getById"](userId);
+      if (user.service_id)
+        return this["services/getById"](user.service_id).name;
+      else return null;
+    },
+    orderInterventionType(order) {
+      if (order.intervention_gid) {
+        let intervention = this["interventions/getById"](
+          order.intervention_gid
+        );
+        if (intervention.interventions_type_id)
+          return this["interventionsTypes/getById"](
+            intervention.interventions_type_id
+          ).name;
+        else return null;
+      } else {
+        return null;
+      }
+    },
+    orderReportType(order) {
+      if (order.report_gid) {
+        let report = this["reports/getById"](order.report_gid);
+        if (report.reports_type_id)
+          return this["reportsTypes/getById"](report.reports_type_id).name;
+        else return null;
+      } else {
+        return null;
+      }
+    },
+    uploadAttachments(files) {
+      this.files = files;
+    },
+    removeFromAttachmentsUploaded(attachment) {
+      let indexToRemove = this.selectedItem.attachments.findIndex(
+        (el) => el.id === attachment.id
+      );
+      this.attachmentsIdToRemove.push(attachment.id);
+      this.selectedItem.attachments.splice(indexToRemove, 1);
+    },
+    toggleCommentDialog() {
+      this.commentDialog = !this.commentDialog;
+    },
+    submit(evt) {
+      evt.preventDefault();
+      const validate = this.$refs.form.validate();
+      const formData = validate && {
+        ...this.form,
+        historyUpdateComment: this.commentUpdate,
+      };
+
+      let dataForm = new FormData();
+      for (let key in formData) {
+        if (formData[key] !== null) {
+          if (formData[key] === true) dataForm.append(key, 1);
+          else if (formData[key] === false) dataForm.append(key, 0);
+          else dataForm.append(key, formData[key]);
+        }
+      }
+
+      for (let attachmentIdToRemove of this.attachmentsIdToRemove) {
+        this["attachments/removeOne"](attachmentIdToRemove);
+      }
+
+      if (this.files) {
+        for (let i in this.files) {
+          dataForm.append(`attachment${i}`, this.files[i] || "");
+        }
+        dataForm.append("lenghtAttachment", this.files.length || "");
+      }
+
+      if (validate && this.selectedItem.gid) {
+        this["greenspaces/updateOne"](dataForm)
+          .then(() => {
+            this.$refs.form.reset();
+            this.commentDialog = null;
+            this.commentUpdate = null;
+            this.toggleCommentDialog();
+            this.close();
+          })
+          .catch(() => {
+            this.close();
+          });
+      }
+    },
+    close() {
+      if (this.$map.instance) {
+        this.$map.instance.removeLayer(this.locationLayer);
+      }
+      mapBus.$off("mounted", this.mountMap);
+      this.$emit("close");
+      this.selectedItem = null;
+      this.attachmentsIdToRemove = [];
+      this.files = null;
+    },
+    mountMap(mapId) {
+      if (mapId === "map-location") {
+        mapBus.$emit("resetDefaultView");
+        this.locationLayer = new this.$map.library.ol.layer.Vector({
+          zIndex: 1000,
+          source: new this.$map.library.ol.source.Vector({}),
+        });
+        this.$map.instance.addLayer(this.locationLayer);
+        let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+        this.locationCoordinates = [...config.center];
+        this.convertCoordinates(this.locationCoordinates);
+        let centerCoordinates = this.$map.library.ol.proj.transform(
+          config.center,
+          this.$map.projection,
+          defaultProjection
+        );
+        let centerFeature = new this.$map.library.ol.Feature(
+          new this.$map.library.ol.geom.Point(centerCoordinates)
+        );
+        this.locationLayer.getSource().addFeature(centerFeature);
+        this.showMap();
+      }
+    },
+    showMap() {
+      console.log("Running", this.locationLayer);
+      mapBus.$emit("hideAllGroups");
+      //   this.locationLayer.getSource().clear();
+      //   this.locationLayer.getSource().refresh();
+      this.locationLayer = new this.$map.library.ol.layer.Vector({
+        zIndex: 1000,
+        source: new this.$map.library.ol.source.Vector({}),
+      });
+      //   this.$map.instance.getView().setCenter(data);
+      //   this.$map.instance.getView().setZoom(20);
+      //   this.setBox(data);
+      let coordinatesItem = JSON.parse(this.selectedItem.coordinates);
+      let polygon = coordinatesItem.coordinates;
+      // let polygon = [
+      //   [
+      //     [507045.7657942615, 6504731.4080208205],
+      //     [506294.87264417973, 6506236.063201791],
+      //     [507431.9295076723, 6506824.864295103],
+      //     [508166.0992140158, 6505803.066469075],
+      //     [507045.7657942615, 6504731.4080208205],
+      //   ],
+      // ];
+      // let polygon = [
+      //   [
+      //     [162884.4849564, 115115.59524349],
+      //     [163959.65985799, 115118.33569879],
+      //     [163974.0436194, 114301.94698274],
+      //     [163180.07794057, 114171.94150674],
+      //     [162884.4849564, 115115.59524349],
+      //   ],
+      // ];
+      let polygonFeature = new this.$map.library.ol.Feature(
+        new this.$map.library.ol.geom.Polygon(polygon)
+      );
+      let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+      polygonFeature
+        .getGeometry()
+        .transform(this.$map.projection, defaultProjection);
+      console.log("POLYGON: ", polygonFeature);
+      polygonFeature.setStyle(
+        new this.$map.library.ol.style.Style({
+          stroke: new this.$map.library.ol.style.Stroke({
+            color: "rgb(0, 0, 0)",
+            width: 2,
+          }),
+          fill: new this.$map.library.ol.style.Fill({
+            color: "rgb(255, 0, 0)",
+          }),
+        })
+      );
+      this.transformFeature();
+      this.locationLayer.getSource().addFeature(polygonFeature);
+      this.$map.instance.addLayer(this.locationLayer);
+    },
+    transformFeature() {
+      
+      const transform = new this.$map.library.ol.interaction.Transform({
+        enableRotatedTransform: false,
+        // addCondition: shiftKeyOnly,
+        hitTolerance: 2,
+        // Translate when click on feature
+        translateFeature: false,
+        // Can translate the feature
+        translate: true,
+        stretch: true,
+        scale: true,
+        rotate: true,
+      });
+      var firstPoint = false;
+      var startangle = 0;
+      var d = [0, 0];
+      transform.on(["select"], function (e) {
+        if (firstPoint && e.features && e.features.getLength()) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+      transform.on(["rotatestart", "translatestart"], function (e) {
+        // Rotation
+        startangle = e.feature.get("angle") || 0;
+        // Translation
+        d = [0, 0];
+      });
+      transform.on("rotating", function (e) {
+        // Set angle attribute to be used on style !
+        e.feature.set("angle", startangle - e.angle);
+      });
+      transform.on("translating", function (e) {
+        d[0] += e.delta[0];
+        d[1] += e.delta[1];
+        if (firstPoint) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+      transform.on("scaling", (e) => {
+        this.scale = {
+          x: e.scale[0].toFixed(2),
+          y: e.scale[1].toFixed(2),
+        };
+        if (firstPoint) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+
+      transform.on(["rotateend", "translateend", "scaleend"], (e) => {
+        if (e.type === "scaleend") {
+          this.size = {
+            width: (this.size.width * this.scale.x).toFixed(2),
+            height: (this.size.height * this.scale.y).toFixed(2),
+          };
+        } else if (e.type === "translateend") {
+          //   let coordinate = e.target.coordinate_;
+          //   this.setBox(coordinate);
+          console.log("translateend", e);
+        } else if (e.type === "rotateend") {
+          let feature = e.feature;
+          let polygonFeature = new this.$map.library.ol.Feature(
+            new this.$map.library.ol.geom.Polygon(
+              feature.getGeometry().getCoordinates()
+            )
+          );
+          let geometry = polygonFeature.getGeometry();
+          let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+          let transformedCoordinates = geometry
+            .transform(defaultProjection, this.$map.projection)
+            .getCoordinates();
+          console.log("geometry: ", transformedCoordinates);
+          this.form.coordinates = JSON.stringify(transformedCoordinates);
+        }
+      });
+      this.$map.instance.addInteraction(transform);
+    },
+    convertCoordinates(data) {
+      console.log("COR 1: ", data);
+      let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+      let transformedCoordinates = this.$map.library.ol.proj.transform(
+        data,
+        this.$map.projection,
+        defaultProjection
+      );
+      console.log("COR 2: ", transformedCoordinates);
+      return transformedCoordinates;
+    },
+  },
+  computed: {
+    ...mapGetters([
+      "addresses/getById",
+      "greenspacesNatures/getAll",
+      "greenspacesSubnatures/getAll",
+      "reportsTypes/getById",
+      "reportsSubnatures/getById",
+      "reportsNatures/getById",
+      "addresses/getById",
+      "interventionsTypes/getById",
+      "interventions/getById",
+      "reports/getById",
+      "services/getById",
+      "users/getById",
+    ]),
+    username() {
+      if (this.selectedItem && this.selectedItem.user_id) {
+        let user = this["users/getById"](this.selectedItem.user_id);
+        return user.first_name + " " + user.last_name;
+      } else {
+        return null;
+      }
+    },
+    natures() {
+      return this["greenspacesNatures/getAll"].map((el) => {
+        return {
+          text: el.name,
+          value: el.id,
+        };
+      });
+    },
+    subnatures() {
+      return this["greenspacesSubnatures/getAll"]
+        .filter(
+          (el) => el.buildings_nature_id === this.form.buildings_nature_id
+        )
+        .map((el) => {
+          return {
+            text: el.name,
+            value: el.id,
+          };
+        });
+    },
+  },
+  watch: {
+    formGreenspace: {
+      immediate: true,
+      handler(selectedItem) {
+        if (selectedItem) {
+          this.form = {
+            gid: selectedItem.gid,
+            name: selectedItem.name,
+            greenspaces_nature_id: selectedItem.greenspaces_nature_id,
+            greenspaces_subnature_id: selectedItem.greenspaces_subnature_id,
+            description: selectedItem.description,
+            intervention_condition: selectedItem.intervention_condition,
+            width: selectedItem.width,
+            length: selectedItem.length,
+            diameter: selectedItem.diameter,
+            height: selectedItem.height,
+            area: selectedItem.area,
+            volume: selectedItem.volume,
+            management_class: selectedItem.management_class,
+            goal: selectedItem.goal,
+            comment: selectedItem.comment,
+            water_connection: selectedItem.water_connection,
+            coating_type: selectedItem.coating_type,
+            coating_maintenance_material:
+              selectedItem.coating_maintenance_material,
+            coating_maintenance: selectedItem.coating_maintenance,
+            coating_maintenance_frequency:
+              selectedItem.coating_maintenance_frequency,
+            coating_maintenance_duration:
+              selectedItem.coating_maintenance_duration,
+            planting_type: selectedItem.planting_type,
+            planting_maintenance: selectedItem.planting_maintenance,
+            planting_maintenance_material:
+              selectedItem.planting_maintenance_material,
+            planting_maintenance_frequency:
+              selectedItem.planting_maintenance_frequency,
+            planting_maintenance_duration:
+              selectedItem.planting_maintenance_duration,
+            changing_date: selectedItem.changing_date,
+          };
+          this.selectedItem = { ...selectedItem };
+          let plotItem = null;
+          if (this.selectedItem.plot_gid) {
+            plotItem = {
+              section: this.selectedItem.plot.texte.substr(5, 1),
+              bis: this.selectedItem.plot.texte.substr(11, 1),
+              division: this.selectedItem.plot.texte.substr(0, 5),
+              plot: this.selectedItem.plot.texte.substr(6, 4),
+              exposant: this.selectedItem.plot.texte.substr(12, 4),
+            };
+          }
+          this.selectedItem["plotItem"] = plotItem;
+          mapBus.$emit("activeMap");
+          mapBus.$on("mounted", this.mountMap);
+        }
+      },
+    },
+  },
+  mounted() {
+    document
+      .querySelector(".v-dialog__content--active")
+      .classList.add("fixed-dialog");
+  },
+};
+</script>

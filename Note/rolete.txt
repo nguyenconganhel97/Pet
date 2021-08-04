@@ -1,0 +1,395 @@
+<template>
+  <!-- <v-dialog
+        :fullscreen="$vuetify.breakpoint.xsOnly"
+        v-model="showDialog"
+        persistent
+        width="1800px"
+        eager
+    > -->
+
+  <v-card height="400px" class="pa-0" v-if="showDialog">
+    <!-- <div style="background: white; padding: 0 0.45em">
+      <span id="info">{{ text }}</span
+      >&nbsp;
+    </div> -->
+    <!-- <v-container class="d-flex justify-end align-center px-2" fluid>
+      <v-card-text
+        class="text--primary pa-3 text-uppercase pb-0"
+        :class="
+          $vuetify.breakpoint.xsOnly ? 'subtitle-1 font-weight-bold' : 'text-h6'
+        "
+      >
+        LOCATION
+      </v-card-text>
+      <v-btn icon small @click="closeDialog">
+        <v-icon color="error">mdi-close</v-icon></v-btn
+      >
+    </v-container> -->
+    <v-card flat class="infor-size-btn" color="transparent">
+      <v-text-field
+        class="pa-1"
+        dense
+        label="Width"
+        outlined
+        type="number"
+        background-color="blue lighten-4"
+        hide-details
+        v-model="size.width"
+        style="width: 100px"
+      ></v-text-field>
+      <v-text-field
+        class="pa-1"
+        dense
+        label="Height"
+        outlined
+        type="number"
+        background-color="blue lighten-4"
+        hide-details
+        v-model="size.height"
+        style="width: 100px"
+      ></v-text-field>
+    </v-card>
+    <v-card>
+      <map-router
+        height="calc(100vh - 249px)"
+        map-id="map-location"
+        v-if="showDialog"
+      />
+    </v-card>
+  </v-card>
+  <!-- </v-dialog> -->
+</template>
+
+<script>
+import MapRouter from "../map/MapRouter";
+import mapBus from "../../mapBus";
+import config from "../../config";
+// import { rotate } from "ol/coordinate";
+export default {
+  components: {
+    MapRouter,
+  },
+  data() {
+    return {
+      text: null,
+      active: true,
+      size: {
+        width: null,
+        height: null,
+      },
+      locationLayer: null,
+      boxCoins: null,
+      scale: {
+        x: 1,
+        y: 1,
+      },
+    };
+  },
+  props: {
+    showDialog: Boolean,
+  },
+  methods: {
+    closeDialog() {
+      this.$emit("close");
+    },
+    mountMap(mapId) {
+      if (mapId === "map-location") {
+        mapBus.$emit("resetDefaultView");
+        mapBus.$emit("showAllGroups");
+        this.locationLayer = new this.$map.library.ol.layer.Vector({
+          zIndex: 1000,
+          source: new this.$map.library.ol.source.Vector({}),
+        });
+        this.$map.instance.addLayer(this.locationLayer);
+        let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+        this.locationCoordinates = [...config.center];
+        let centerCoordinates = this.$map.library.ol.proj.transform(
+          config.center,
+          this.$map.projection,
+          defaultProjection
+        );
+        let centerFeature = new this.$map.library.ol.Feature(
+          new this.$map.library.ol.geom.Point(centerCoordinates)
+        );
+        this.locationLayer.getSource().addFeature(centerFeature);
+        console.log("");
+      }
+      mapBus.$on("changeMapRoute", this.changeRoute);
+      mapBus.$on("changeMapAddress", this.changeAddress);
+    },
+    transformFeature() {
+      // var _this = this
+      // if (this.transform !== null || this.transform !== '') {
+      //   this.map.removeInteraction(this.transform)
+      // }
+      // this.editMenuStyle.height = '0px'
+      const transform = new this.$map.library.ol.interaction.Transform({
+        enableRotatedTransform: false,
+        // addCondition: shiftKeyOnly,
+        hitTolerance: 2,
+        // Translate when click on feature
+        translateFeature: false,
+        // Can translate the feature
+        translate: true,
+        stretch: true,
+        scale: true,
+        rotate: true,
+      });
+      var firstPoint = false;
+      var startangle = 0;
+      var d = [0, 0];
+      transform.on(["select"], function (e) {
+        if (firstPoint && e.features && e.features.getLength()) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+      transform.on(["rotatestart", "translatestart"], function (e) {
+        // Rotation
+        startangle = e.feature.get("angle") || 0;
+        // Translation
+        d = [0, 0];
+      });
+      transform.on("rotating", function (e) {
+        // Set angle attribute to be used on style !
+        e.feature.set("angle", startangle - e.angle);
+        console.log("rotating: ", e);
+      });
+      transform.on("translating", function (e) {
+        console.log("translating: ", e);
+        d[0] += e.delta[0];
+        d[1] += e.delta[1];
+        if (firstPoint) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+      transform.on("scaling", (e) => {
+        console.log("scaling: ", e);
+        this.scale = {
+          x: e.scale[0].toFixed(2),
+          y: e.scale[1].toFixed(2),
+        };
+        if (firstPoint) {
+          transform.setCenter(
+            e.features.getArray()[0].getGeometry().getFirstCoordinate()
+          );
+        }
+      });
+      transform.on(["rotateend", "translateend", "scaleend"], (e) => {
+        if (e.type === "scaleend") {
+          this.size = {
+            width: (this.size.width * this.scale.x).toFixed(2),
+            height: (this.size.height * this.scale.y).toFixed(2),
+          };
+        } else if (e.type === "translateend") {
+          console.log("log", e.target.coordinate_);
+          let coordinate = e.target.coordinate_;
+          this.setBox(coordinate);
+        } else if (e.type === "rotateend") {
+          console.log("log", e);
+          console.log("log 1", e.target.geoms_[0]);
+          this.boxCoins = [
+            [
+              [
+                e.feature.geometryChangeKey_.target.flatCoordinates[0],
+                e.feature.geometryChangeKey_.target.flatCoordinates[1],
+              ],
+              [
+                e.feature.geometryChangeKey_.target.flatCoordinates[2],
+                e.feature.geometryChangeKey_.target.flatCoordinates[3],
+              ],
+              [
+                e.feature.geometryChangeKey_.target.flatCoordinates[4],
+                e.feature.geometryChangeKey_.target.flatCoordinates[5],
+              ],
+              [
+                e.feature.geometryChangeKey_.target.flatCoordinates[6],
+                e.feature.geometryChangeKey_.target.flatCoordinates[7],
+              ],
+              [
+                e.feature.geometryChangeKey_.target.flatCoordinates[8],
+                e.feature.geometryChangeKey_.target.flatCoordinates[9],
+              ],
+            ],
+          ];
+          console.log("boxCoins Rotate : ", this.boxCoins);
+        }
+      });
+      this.$map.instance.addInteraction(transform);
+    },
+    transferCoor(data) {
+      let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+      let transformedCoordinates = this.$map.library.ol.proj.transform(
+        data,
+        this.$map.projection,
+        defaultProjection
+      );
+      return transformedCoordinates;
+    },
+    setBox(data) {
+      console.log(data);
+      //   var rotateRadians = Math.PI / 6;
+      //   console.log(
+      //     "Rotete: ",
+      //     rotate([420412.4543996142, 6556889.780805451], rotateRadians)
+      //   );
+
+      // this.boxCoins = [
+      //   [
+      //     rotate([420412.4543996142, 6556889.780805451], rotateRadians),
+      //     rotate([420412.4543996142, 6556905.48080545], rotateRadians),
+      //     rotate([420428.15439961414, 6556905.48080545], rotateRadians),
+      //     rotate([420428.15439961414, 6556889.780805451], rotateRadians),
+      //     rotate([420412.4543996142, 6556889.780805451], rotateRadians),
+      //   ],
+      // ];
+
+      this.boxCoins = [
+        [
+          [420409.829960222, 6556948.820006498],
+          [420430.39119789994, 6556972.551746956],
+          [420489.72054904466, 6556921.148652761],
+          [420469.15931136673, 6556897.416912303],
+          [420409.829960222, 6556948.820006498],
+        ],
+      ];
+
+      // let centerCoordinates = data;
+      // let boxDimensions = {
+      //   width: parseInt(this.size.width),
+      //   length: parseInt(this.size.height),
+      // };
+
+      // this.boxCoins = [
+      //   [
+      //     [
+      //       centerCoordinates[0] - (1.57 * boxDimensions.width) / 2,
+      //       centerCoordinates[1] - (1.57 * boxDimensions.length) / 2,
+      //     ],
+      //     [
+      //       centerCoordinates[0] - (1.57 * boxDimensions.width) / 2,
+      //       centerCoordinates[1] + (1.57 * boxDimensions.length) / 2,
+      //     ],
+      //     [
+      //       centerCoordinates[0] + (1.57 * boxDimensions.width) / 2,
+      //       centerCoordinates[1] + (1.57 * boxDimensions.length) / 2,
+      //     ],
+      //     [
+      //       centerCoordinates[0] + (1.57 * boxDimensions.width) / 2,
+      //       centerCoordinates[1] - (1.57 * boxDimensions.length) / 2,
+      //     ],
+      //     [
+      //       centerCoordinates[0] - (1.57 * boxDimensions.width) / 2,
+      //       centerCoordinates[1] - (1.57 * boxDimensions.length) / 2,
+      //     ],
+      //   ],
+      // ];
+      console.log("boxCoins: ", this.boxCoins);
+    },
+    clickHandlerOnMap(data) {
+      if (this.active) {
+        this.locationLayer.getSource().clear();
+        this.locationLayer.getSource().refresh();
+        this.locationLayer = new this.$map.library.ol.layer.Vector({
+          zIndex: 1000,
+          source: new this.$map.library.ol.source.Vector({}),
+        });
+        this.$map.instance.getView().setCenter(data);
+        this.$map.instance.getView().setZoom(20);
+        this.setBox(data);
+        //   let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+        let polygonFeature = new this.$map.library.ol.Feature(
+          new this.$map.library.ol.geom.Polygon(this.boxCoins)
+        );
+        //   polygonFeature
+        //     .getGeometry()
+        //     .transform();
+        // let defaultProjection = this.$map.library.ol.proj.get("EPSG:3857");
+        // polygonFeature
+        //   .getGeometry()
+        //   .transform(this.$map.projection, defaultProjection);
+        polygonFeature.setStyle(
+          new this.$map.library.ol.style.Style({
+            stroke: new this.$map.library.ol.style.Stroke({
+              color: "rgb(0, 0, 0)",
+              width: 2,
+            }),
+            fill: new this.$map.library.ol.style.Fill({
+              color: "rgb(255, 0, 0)",
+            }),
+          })
+        );
+        this.transformFeature();
+        console.log("scale: ", this.scale);
+        this.locationLayer.getSource().addFeature(polygonFeature);
+        this.$map.instance.addLayer(this.locationLayer);
+      }
+      this.active = false;
+    },
+  },
+
+  watch: {
+    showDialog: {
+      handler(newVal) {
+        if (newVal === false) {
+          console.log("Clear location");
+
+          this.size = {
+            width: null,
+            height: null,
+          };
+
+          if (this.$map.instance) {
+            this.$map.instance.removeLayer(this.locationLayer);
+          }
+          mapBus.$off("mounted", this.mountMap);
+          // this.$map.instance.un('moveend', this.filterOnMapExtentCallback)
+          mapBus.$off("click", this.clickHandlerOnMap);
+        }
+        if (newVal === true) {
+          mapBus.$emit("activeMeasure", false);
+          mapBus.$on("mounted", this.mountMap);
+          mapBus.$on("click", this.clickHandlerOnMap);
+          mapBus.$on("destroyLocation");
+        }
+      },
+    },
+    boxCoins: {
+      deep: true,
+      immediate: true,
+      handler() {
+        this.$emit("updateForm", this.boxCoins);
+      },
+    },
+  },
+
+  // created() {
+  //     mapBus.$on("mounted", this.mountMap);
+  //     mapBus.$on("click", this.clickHandlerOnMap);
+  //     mapBus.$on("destroyLocation");
+  // },
+
+  beforeDestroy() {
+    console.log("Clear location");
+
+    if (this.$map.instance) {
+      this.$map.instance.removeLayer(this.locationLayer);
+    }
+    mapBus.$off("mounted", this.mountMap);
+    // this.$map.instance.un('moveend', this.filterOnMapExtentCallback)
+    mapBus.$off("click", this.clickHandlerOnMap);
+  },
+};
+</script>
+
+<style scoped>
+.infor-size-btn {
+  position: absolute;
+  top: 10vh;
+  left: 2vw;
+  z-index: 10000;
+}
+</style>
