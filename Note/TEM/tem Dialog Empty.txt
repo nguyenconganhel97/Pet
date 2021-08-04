@@ -1,0 +1,51 @@
+<template>
+    <v-dialog
+        v-model="showDialog"
+        persistent
+        max-width="1200"
+    >
+    
+
+        <v-card>
+            <v-card-actions class="pa-0 pr-2">
+                <v-spacer></v-spacer>
+                <v-btn
+                    color="error"
+                    text
+                    @click="close"
+                >
+                    Close
+                </v-btn>
+                <v-btn
+                    color="success"
+                    text
+                    @click="save"
+                >
+                    Save
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+
+    </v-dialog>
+</template>
+
+<script>
+export default {
+    components: {},
+    props: {
+        showDialog: Boolean,
+    },
+    data() {
+        return {};
+    },
+
+    computed: {},
+    watch: {},
+    methods: {
+        close() {
+            this.$emit("close");
+        },
+        save() {},
+    },
+};
+</script>

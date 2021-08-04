@@ -1,0 +1,207 @@
+<template>
+    <v-dialog
+        :fullscreen="$vuetify.breakpoint.xsOnly"
+        v-model="showDialog"
+        persistent
+    >
+        <v-card height="80vh">
+            <v-container fluid>
+                <!-- btn close -->
+
+                <v-stepper>
+                    <v-container class="pa-0 d-flex justify-end">
+                        <v-card-text
+                            class="text--primary pa-3 text-uppercase"
+                            :class="
+                                $vuetify.breakpoint.xsOnly
+                                    ? 'subtitle-1 font-weight-bold'
+                                    : 'text-h6'
+                            "
+                        >
+                            Nouvelle déclaration de décès
+                        </v-card-text>
+                        <v-btn
+                            fab
+                            small
+                            color="white"
+                            elevation="0"
+                            class="mt-2"
+                            @click="closeDialog"
+                        >
+                            <v-icon color="error">mdi-close</v-icon>
+                        </v-btn>
+                    </v-container>
+
+                    <v-divider class="mx-3"></v-divider>
+                    <v-stepper
+                        height="calc(100% - 56px - 1px)"
+                        v-model="process"
+                    >
+                        <v-stepper-header>
+                            <v-stepper-step step="1" :complete="process > 1"
+                                >Deceaseds</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="2" :complete="process > 2"
+                                >Statements</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="3" :complete="process > 3"
+                                >Funerals</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="4" :complete="process > 4"
+                                >Agents</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="5" :complete="process > 5"
+                                >Responsibles</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="6" :complete="process > 6"
+                                >Burials</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="7" :complete="process > 7"
+                                >Requests</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                            <v-stepper-step step="8" :complete="process > 8"
+                                >Save</v-stepper-step
+                            >
+                            <v-divider></v-divider>
+                        </v-stepper-header>
+                        <v-stepper-items>
+                            <!-- Deceaseds -->
+                            <v-stepper-content step="1" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-deceaseds />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- statements -->
+                            <v-stepper-content step="2" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-statements />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- funerals -->
+                            <v-stepper-content step="3" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-funerals />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- agents -->
+                            <v-stepper-content step="4" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-agents />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- responsibles -->
+                            <v-stepper-content step="5" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-responsibles />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- burials -->
+                            <v-stepper-content step="6" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-burials />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- requests -->
+                            <v-stepper-content step="7" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <form-requests />
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- Demandes -->
+                            <v-stepper-content step="8" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <v-row></v-row>
+                                </v-container>
+                            </v-stepper-content>
+                            <!-- Récapitulatif -->
+                            <v-stepper-content step="9" class="py-0">
+                                <v-container fluid class="px-8">
+                                    <v-row></v-row>
+                                </v-container>
+                            </v-stepper-content>
+                        </v-stepper-items>
+                    </v-stepper>
+                </v-stepper>
+
+                <!-- btn prev/next -->
+                <v-btn
+                    v-if="process !== 1"
+                    class="primary white--text"
+                    style="position: absolute; bottom: 20px; left: 20px"
+                    @click="process--"
+                    >Précédent</v-btn
+                >
+                <v-btn
+                    v-if="process !== 8"
+                    class="primary white--text"
+                    style="position: absolute; bottom: 20px; right: 20px"
+                    @click="process++"
+                    >Suivant</v-btn
+                >
+
+                <!-- btn save -->
+                <v-btn
+                    v-if="process === 8"
+                    class="success"
+                    style="position: absolute; bottom: 20px; right: 20px"
+                    @click="sendForm"
+                    >Enregistrer</v-btn
+                >
+            </v-container>
+        </v-card>
+    </v-dialog>
+</template>
+
+<script>
+import FormDeceaseds from "../notifications/FormDeceaseds.vue";
+import FormResponsibles from "../notifications/FormResponsibles.vue";
+import FormRequests from "../notifications/FormRequests.vue";
+import FormFunerals from "../notifications/FormFunerals.vue";
+import FormStatements from "../notifications/FormStatements.vue";
+import FormBurials from "../notifications/FormBurials.vue";
+import FormAgents from "../notifications/FormAgents.vue";
+
+import { mapActions } from "vuex";
+
+export default {
+    name: "AddNotificationForm",
+    components: {
+        FormDeceaseds,
+        FormResponsibles,
+        FormRequests,
+        FormFunerals,
+        FormStatements,
+        FormBurials,
+        FormAgents,
+    },
+    props: {
+        showDialog: Boolean,
+    },
+    data() {
+        return {
+            process: null,
+        };
+    },
+
+    computed: {},
+    watch: {},
+    methods: {
+        closeDialog() {
+            this.$emit("close");
+        },
+        sendForm() {},
+        ...mapActions(["burialTypes/setAll", "cemeteries/setAll"]),
+    },
+    created() {
+        this["burialTypes/setAll"]();
+        this["cemeteries/setAll"]();
+    },
+};
+</script>

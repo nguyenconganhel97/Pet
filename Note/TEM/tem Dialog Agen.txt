@@ -1,0 +1,172 @@
+<template>
+    <v-dialog
+        v-model="showDialog"
+        persistent
+        max-width="1200"
+    >
+        <v-card>
+            <v-card-title class="primary white--text d-flex justify-space-between"> Add public signs
+
+                <v-btn
+                    icon
+                    class="mr-2"
+                >
+                    <v-icon
+                        color="white"
+                        @click="close"
+                    >
+                        mdi-close-circle-outline
+                    </v-icon>
+                </v-btn>
+            </v-card-title>
+            <v-container>
+                <v-form
+                    ref="form"
+                    v-model="valid"
+                    lazy-validation
+                    class="pt-6"
+                >
+                    <v-row no-gutters>
+                        <!-- Left -->
+                        <v-col md="6">
+                            <v-row>
+                                <v-text-field
+                                    v-model="form.first_name"
+                                    dense
+                                    outlined
+                                    label="First Name"
+                                    class="px-10"
+                                    prepend-inner-icon="mdi-pencil"
+                                ></v-text-field>
+                            </v-row>
+                            <v-row>
+                                <v-text-field
+                                    v-model="form.last_name"
+                                    dense
+                                    outlined
+                                    label="Last Name"
+                                    class="px-10"
+                                    prepend-inner-icon="mdi-pencil"
+                                ></v-text-field>
+                            </v-row>
+                        </v-col>
+
+                        <!-- Right -->
+                        <v-col md="6">
+                            <v-row>
+                                <v-text-field
+                                    v-model="form.national_number"
+                                    dense
+                                    outlined
+                                    label="National Number"
+                                    class="px-10"
+                                    :rules="rules.nameRules"
+                                    prepend-inner-icon="mdi-identifier"
+                                ></v-text-field>
+                            </v-row>
+                        </v-col>
+
+                    </v-row>
+                </v-form>
+            </v-container>
+            <v-card-actions class="pa-0 pr-2">
+                <v-spacer></v-spacer>
+                <v-btn
+                    color="secondary"
+                    text
+                    @click="reset"
+                >
+                    Clear
+                </v-btn>
+                <v-btn
+                    color="success"
+                    text
+                    @click="save"
+                >
+                    Save
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+
+    </v-dialog>
+</template>
+
+<script>
+import { mapActions, mapGetters } from "vuex";
+export default {
+    name: "DialogAgent",
+    components: {},
+    props: {
+        showDialog: Boolean,
+        dataForm: Object,
+    },
+    data() {
+        return {
+            valid: true,
+            form: {
+                id: null,
+                first_name: null,
+                last_name: null,
+                national_number: null,
+            },
+            rules: {
+                nameRules: [(v) => !!v || "Required"],
+            },
+        };
+    },
+    methods: {
+        ...mapActions(["agents/addOne"]),
+        close() {
+            this.$emit("close");
+            this.reset();
+        },
+        save() {
+            const validate = this.$refs.form.validate();
+            const formData = validate && {
+                ...this.form,
+            };
+            if (validate && !this.form.id) {
+                const items = this.agents.find(
+                    (e) => e.national_number === formData.national_number
+                );
+                if (items) {
+                    this.$emit("getData", items);
+                    this.$emit("close");
+                } else {
+                    this["agents/addOne"](formData)
+                        .then(() => {
+                            this.$emit("save");
+                        })
+                        .catch((err) => {
+                            this.$emit("error", err);
+                        });
+                }
+            }
+            else{
+                return this.$refs.form.validate();
+            }
+            this.reset();
+        },
+        reset() {
+            this.$emit("reset");
+            this.$refs.form.reset();
+        },
+    },
+    computed: {
+        ...mapGetters(["agents/getAll"]),
+        agents() {
+            return this["agents/getAll"] || [];
+        },
+    },
+    watch: {
+        dataForm: {
+            deep: true,
+            handler(item) {
+                this.form = {
+                    ...item,
+                };
+            },
+        },
+    },
+};
+</script>

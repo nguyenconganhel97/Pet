@@ -1,0 +1,248 @@
+<template>
+  <v-dialog
+    v-model="showDialog"
+    persistent
+    max-width="1200"
+  >
+    <v-card>
+      <v-card-title class="primary white--text d-flex justify-space-between"> Add public signs
+
+        <v-btn
+          icon
+          class="mr-2"
+        >
+          <v-icon
+            color="white"
+            @click="close"
+          >
+            mdi-close-circle-outline
+          </v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-container>
+        <v-form
+          ref="form"
+          v-model="valid"
+          lazy-validation
+        >
+
+          <v-row no-gutters>
+            <!-- ID -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-text-field
+                v-model="form.id"
+                dense
+                disabled
+                outlined
+                label="ID"
+                class="px-10"
+              ></v-text-field>
+            </v-col>
+            <!-- Agent -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-select
+                :items="agents"
+                label="Agent"
+                outlined
+                class="px-10"
+                item-text="name"
+                item-value="id"
+                dense
+                v-model="form.agent_id"
+              ></v-select>
+            </v-col>
+            <!-- Debtor -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-select
+                :items="debtors"
+                label="Debtor"
+                outlined
+                class="px-10"
+                item-text="email"
+                item-value="id"
+                dense
+                v-model="form.debtor_id"
+              ></v-select>
+            </v-col>
+            <!-- Noted on -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <custom-date-picker
+                label="Noted on"
+                class="px-13"
+                v-model="form.noted_on"
+              />
+            </v-col>
+            <!-- Housing -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-checkbox
+                dense
+                outlined
+                label="Housing"
+                clearable
+                class="px-10"
+                v-model="form.is_housing"
+              ></v-checkbox>
+            </v-col>
+            <!-- Business -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-checkbox
+                dense
+                outlined
+                label="Business"
+                clearable
+                class="px-10"
+                v-model="form.is_business"
+              ></v-checkbox>
+            </v-col>
+            <!-- Comment -->
+            <v-col
+              md="6"
+              class="px-0"
+            >
+              <v-textarea
+                label="Comment"
+                outlined
+                class="px-10"
+                dense
+                v-model="form.comment"
+              ></v-textarea>
+            </v-col>
+          </v-row>
+        </v-form>
+      </v-container>
+      <v-card-actions class="pa-0 pr-2">
+        <v-spacer></v-spacer>
+        <v-btn
+          color="secondary"
+          text
+          @click="reset"
+        >
+          Clear
+        </v-btn>
+        <v-btn
+          color="success"
+          text
+          @click="save"
+        >
+          Save
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+
+  </v-dialog>
+</template>
+
+<script>
+import { mapActions, mapGetters } from "vuex";
+import CustomDatePicker from "../../../components/CustomDatePicker";
+export default {
+  name: "PublicSignsStatementsDialog",
+  components: { CustomDatePicker },
+  props: {
+    showDialog: Boolean,
+    dataForm: Object,
+  },
+  data() {
+    return {
+      valid: true,
+      form: {
+        id: null,
+        agent_id: null,
+        debtor_id: null,
+        noted_on: null,
+        is_housing: null,
+        is_business: null,
+        comment: null,
+      },
+      rules: {
+        nameRules: [(v) => !!v || "Required"],
+      },
+      statusItems: [
+        {
+          text: "Actif",
+          value: true,
+        },
+        {
+          text: "Inactif",
+          value: false,
+        },
+      ],
+    };
+  },
+  methods: {
+    ...mapActions(["publicSignStatements/addOne"]),
+    ...mapActions(["publicSignStatements/updateOne"]),
+    close() {
+      this.$emit("close");
+      this.reset();
+    },
+    save() {
+      const validate = this.$refs.form.validate();
+
+      const formData = validate && {
+        ...this.form,
+      };
+      if (validate && !this.form.id) {
+        this["publicSignStatements/addOne"](formData)
+          .then(() => {
+            this.$emit("save");
+          })
+          .catch((err) => {
+            this.$emit("error", err);
+          });
+      } else if (validate) {
+        this["publicSignStatements/updateOne"](formData)
+          .then(() => {
+            this.$emit("save");
+          })
+          .catch((err) => {
+            this.$emit("error", err);
+          });
+      }
+      this.reset();
+    },
+    reset() {
+      this.$emit("reset");
+      this.$refs.form.reset();
+    },
+  },
+  computed: {
+    ...mapGetters(["agents/getAll"]),
+    ...mapGetters(["debtors/getAll"]),
+    agents() {
+      return this["agents/getAll"] || [];
+    },
+    debtors() {
+      return this["debtors/getAll"] || [];
+    },
+  },
+  watch: {
+    dataForm: {
+      deep: true,
+      handler(item) {
+        this.form = {
+          ...item,
+        };
+      },
+    },
+  },
+};
+</script>

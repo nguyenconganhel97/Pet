@@ -1,0 +1,191 @@
+<template>
+  <v-container>
+    <v-tooltip bottom>
+      <template v-slot:activator="{ on, attrs }">
+        <v-btn
+          icon
+          v-bind="attrs"
+          v-on="on"
+          @click="open"
+        >
+          <v-icon>mdi-plus-circle</v-icon>
+        </v-btn>
+      </template>
+      <span>Add public signs </span>
+    </v-tooltip>
+    <v-card class="pa-2" flat >
+      <v-data-table
+        :headers="headers"
+        :items="publicSings || []"
+        class="elevation-1"
+      >
+        <template v-slot:[`item.noted_on`]="{ item }">
+          {{convertDate(item.noted_on)}}
+        </template>
+        <template v-slot:[`item.action`]="{ item }">
+          <v-btn
+            icon
+            class="mr-2"
+          >
+            <v-icon
+              color="primary"
+              @click="edit(item)"
+            >
+              mdi-pencil
+            </v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            class="mr-2"
+          >
+            <v-icon
+              color="error"
+              @click="openDelete(item)"
+            >
+              mdi-delete
+            </v-icon>
+          </v-btn>
+        </template>
+      </v-data-table>
+    </v-card>
+    <public-signs-statements-dialog
+      :showDialog="showDialog"
+      :dataForm="dataForm"
+      @close="close"
+      @save="save"
+      @reset="reset"
+      @error="error"
+    />
+    <notification
+      :showToast="snackbar"
+      :colorNotify="colorNotify"
+      :text="text"
+      @hideToast="hideToast"
+    />
+    <dialog-delete
+      :showDialog="showDelete"
+      @closeDialog="closeDelete"
+      @deleteItem="saveDelete"
+    />
+  </v-container>
+</template>
+
+<script>
+import { mapActions, mapGetters } from "vuex";
+import PublicSignsStatementsDialog from "./PublicSignsStatementsDialog.vue";
+import Notification from "../../Notification";
+import processDate from "../../Mixins/processDate";
+import DialogDelete from "../../DialogDelete/DialogDelete";
+
+export default {
+  components: { PublicSignsStatementsDialog, Notification, DialogDelete },
+  mixins: [processDate],
+  data() {
+    return {
+      snackbar: false,
+      text: null,
+      colorNotify: null,
+      showDialog: false,
+      showDelete : false,
+      dataForm: null,
+      headers: [
+        {
+          text: "Id",
+          value: "id",
+        },
+        {
+          text: "Agent",
+          value: "agent_id",
+        },
+        {
+          text: "Debtor",
+          value: "debtor_id",
+        },
+        {
+          text: "Noted on",
+          value: "noted_on",
+        },
+        {
+          text: "Housing",
+          value: "is_housing",
+        },
+        {
+          text: "Business",
+          value: "is_business",
+        },
+        {
+          text: "Comment ",
+          value: "comment",
+        },
+        {
+          text: "",
+          value: "action",
+        },
+      ],
+    };
+  },
+  computed: {
+    ...mapGetters(["publicSignStatements/getAll"]),
+    publicSings() {
+      return this["publicSignStatements/getAll"]
+        ? this["publicSignStatements/getAll"]
+        : [];
+    },
+  },
+  methods: {
+    ...mapActions(["publicSignStatements/removeOne"]),
+    closeDelete() {
+      this.showDelete = false;
+    },
+    hideToast(status) {
+      this.snackbar = status;
+    },
+    messageSucces(msg) {
+      this.snackbar = true;
+      this.text = msg;
+      this.colorNotify = "success";
+    },
+
+    messageError(err) {
+      this.snackbar = true;
+      this.text = err.toString();
+      this.colorNotify = "error";
+    },
+    open() {
+      this.showDialog = true;
+    },
+    close() {
+      this.showDialog = false;
+    },
+    reset() {
+      this.dataForm = null;
+    },
+    save() {
+      this.messageSucces("Enregistré avec succès.");
+      this.close();
+    },
+    error(er) {
+      this.messageError(er);
+      this.close();
+    },
+    edit(item) {
+      this.dataForm = item;
+      this.open();
+    },
+    openDelete(formData) {
+      this.formData = formData;
+      this.showDelete = true;
+    },
+    saveDelete() {
+      this["publicSignStatements/removeOne"](this.formData.id)
+        .then(() => {
+          this.messageSucces("Delete success!");
+          this.closeDelete();
+        })
+        .catch((error) => {
+          this.messageError(error);
+        });
+    },
+  },
+};
+</script>
